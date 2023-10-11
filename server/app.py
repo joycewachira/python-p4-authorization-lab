@@ -31,39 +31,33 @@ class IndexArticle(Resource):
     
     def get(self):
         articles = [article.to_dict() for article in Article.query.all()]
-        return make_response(jsonify(articles), 200)
+        return articles, 200
 
 class ShowArticle(Resource):
 
     def get(self, id):
+        session['page_views'] = 0 if not session.get('page_views') else session.get('page_views')
+        session['page_views'] += 1
 
-        article = Article.query.filter(Article.id == id).first()
-        article_json = article.to_dict()
+        if session['page_views'] <= 3:
 
-        if not session.get('user_id'):
-            session['page_views'] = 0 if not session.get('page_views') else session.get('page_views')
-            session['page_views'] += 1
+            article = Article.query.filter(Article.id == id).first()
+            article_json = jsonify(article.to_dict())
 
-            if session['page_views'] <= 3:
-                return article_json, 200
+            return make_response(article_json, 200)
 
-            return {'message': 'Maximum pageview limit reached'}, 401
-
-        return article_json, 200
-
+        return {'message': 'Maximum pageview limit reached'}, 401
+    
 class Login(Resource):
 
     def post(self):
         
-        username = request.get_json().get('username')
+        username = request.get_json()['username']
         user = User.query.filter(User.username == username).first()
 
-        if user:
-        
-            session['user_id'] = user.id
-            return user.to_dict(), 200
+        session['user_id'] = user.id
 
-        return {}, 401
+        return user.to_dict(), 200
 
 class Logout(Resource):
 
@@ -77,31 +71,20 @@ class CheckSession(Resource):
 
     def get(self):
         
-        user_id = session['user_id']
+        user_id = session.get('user_id')
         if user_id:
             user = User.query.filter(User.id == user_id).first()
             return user.to_dict(), 200
         
         return {}, 401
 
-class MemberOnlyIndex(Resource):
-    
-    def get(self):
-        pass
 
-class MemberOnlyArticle(Resource):
-    
-    def get(self, id):
-        pass
-
-api.add_resource(ClearSession, '/clear', endpoint='clear')
-api.add_resource(IndexArticle, '/articles', endpoint='article_list')
-api.add_resource(ShowArticle, '/articles/<int:id>', endpoint='show_article')
-api.add_resource(Login, '/login', endpoint='login')
-api.add_resource(Logout, '/logout', endpoint='logout')
-api.add_resource(CheckSession, '/check_session', endpoint='check_session')
-api.add_resource(MemberOnlyIndex, '/members_only_articles', endpoint='member_index')
-api.add_resource(MemberOnlyArticle, '/members_only_articles/<int:id>', endpoint='member_article')
+api.add_resource(Login, '/login')
+api.add_resource(Logout, '/logout')
+api.add_resource(CheckSession, '/check_session')
+api.add_resource(ClearSession, '/clear')
+api.add_resource(IndexArticle, '/articles')
+api.add_resource(ShowArticle, '/articles/<int:id>')
 
 
 if __name__ == '__main__':
